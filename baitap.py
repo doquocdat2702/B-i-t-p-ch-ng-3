@@ -12,46 +12,54 @@ load_dotenv(dotenv_path="load_nguoidung.env")
 SENDER_EMAIL = os.getenv("SENDER_EMAIL")
 SENDER_PASSWORD = os.getenv("SENDER_PASSWORD")
 RECEIVER_EMAIL = os.getenv("RECEIVER_EMAIL")
-SOURCE_DIR = "./"
-BACKUP_DIR = "./backup/"
+
+SOURCE_FILE = "C:/Users/Admin/Downloads/ASP.NET-MVC-master/ASP.NET-MVC-master/Database/BanDongHo.sql"
+BACKUP_DIR = "E:/bai tap/backup"
 
 def send_email(subject, body):
     msg = MIMEText(body)
-    msg['Subject'], msg['From'], msg['To'] = subject, SENDER_EMAIL, RECEIVER_EMAIL
+    msg['Subject'] = subject
+    msg['From'] = SENDER_EMAIL
+    msg['To'] = RECEIVER_EMAIL
+
     try:
         with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
             server.login(SENDER_EMAIL, SENDER_PASSWORD)
             server.send_message(msg)
-        print("[INFO] Email Đã Được Gửi Thành Công.")
+        print("[INFO] Email đã được gửi thành công.")
     except Exception as e:
-        print(f"[ERROR] Lỗi Khi Gửi Email: {e}")
+        print(f"[ERROR] Lỗi khi gửi email: {e}")
 
 def backup_database():
     try:
+        if not os.path.isfile(SOURCE_FILE):
+            raise FileNotFoundError(f"Không tìm thấy file: {SOURCE_FILE}")
+
         os.makedirs(BACKUP_DIR, exist_ok=True)
-        db_files = [f for f in os.listdir(SOURCE_DIR) if f.endswith((".sql", ".sqlite3"))]
-        if not db_files:
-            send_email("Cảnh báo: Không tìm thấy file .sql hoặc .sqlite3.", "Không có file cơ sở dữ liệu để sao lưu.")
-            return
 
-        backup_files = []
-        for file in db_files:
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            dst = os.path.join(BACKUP_DIR, f"{os.path.splitext(file)[0]}_{timestamp}{os.path.splitext(file)[1]}")
-            shutil.copy2(os.path.join(SOURCE_DIR, file), dst)
-            backup_files.append(os.path.basename(dst))
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        file_name = os.path.basename(SOURCE_FILE)
+        name, ext = os.path.splitext(file_name)
 
-        send_email("Backup Thành Công", f"Sao lưu thành công:\n" + "\n".join(backup_files))
-        print(f"[INFO] Backup successful: {backup_files}")
+        backup_file_name = f"{name}_{timestamp}{ext}"
+        backup_path = os.path.join(BACKUP_DIR, backup_file_name)
+
+        shutil.copy2(SOURCE_FILE, backup_path)
+
+        send_email("Backup thành công", f"Đã sao lưu tập tin thành công:\n{backup_file_name}")
+        print(f"[INFO] Backup thành công: {backup_file_name}")
+
     except Exception as e:
-        send_email("Backup Thất Bại", f"Lỗi khi sao lưu: {e}")
-        print(f"[ERROR] Backup failed: {e}")
+        send_email("Backup thất bại", f"Lỗi khi sao lưu: {e}")
+        print(f"[ERROR] Backup thất bại: {e}")
 
 def main():
     print("[INFO] Đang thực hiện sao lưu ngay...")
-   # backup_database()
+    #backup_database()
+
+    print("[INFO] Thiết lập lịch sao lưu tự động mỗi ngày lúc 00:00.")
     schedule.every().day.at("00:00").do(backup_database)
-    print("[INFO] Hệ Thống Đang Khởi Động. Xin Vui Lòng Chờ Đợi")
+
     while True:
         schedule.run_pending()
         time.sleep(1)
